@@ -1,0 +1,383 @@
+{% raw %}
+  {% assign root_url = {% endraw %}"{%- if routes.root_url != "/" -%}{{ routes.root_url }}{%- endif -%}"{% raw %} %}
+  {% assign currencyFormat = {% endraw %}{{ shop.money_format | json }}{% raw %} %}
+  {% assign swatch_options = 'Colour~~Color' | downcase | split: "~~" | uniq  %}
+  {% assign image_options  = '' | downcase | split: "~~" | uniq  %}
+  {% assign text_options   = 'Size' | downcase | split: "~~" | uniq  %}
+  {% assign show_selected_variant_info = true %}
+ 
+  {% assign image_size     = '360x504' %}
+  {% assign images_count   = product.images | size %}
+  {% assign variants_count = product.variants | size %}
+  {% assign options_count  = product.options | size %}
+  {% assign no_image = 'https://cdn.shopify.com/s/images/themes/product-1.png' %}
+
+  {% assign featured_image            = product.featured_image %}
+  {% assign product_price             = product.price %}
+  {% assign product_compare_at_price  = product.compare_at_price %}
+  {% assign second_image_index        = 2 %}
+  {% assign selected_or_first_available_variant = product.selected_or_first_available_variant %}
+  {% assign variant_url = '' %}
+  {% if product.selected_or_first_available_variant %}{% assign variant_url = '?variant=' | append: product.selected_or_first_available_variant.id %}{% endif %}  {% if show_selected_variant_info and product.selected_variant %}
+    {% assign selected_or_first_available_variant = product.selected_variant %}
+    {% assign product_price             = selected_or_first_available_variant.price %}
+    {% assign product_compare_at_price  = selected_or_first_available_variant.compare_at_price %}
+    {% if selected_or_first_available_variant.image %}
+      {% assign featured_image = selected_or_first_available_variant.image %}
+    {% endif %}
+  {% endif %}
+
+  {% for image in product.images %}
+    {% if image.id == featured_image.id %}
+      {% if forloop.index == images_count %}
+        {% assign second_image_index = 1 %}
+      {% else %}
+        {% assign second_image_index = forloop.index | plus: 1 %}
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+
+      {% assign stacked = true %}
+{% assign show_badges = true %}
+{%- assign show_rating = show_rating | default: settings.show_product_rating, allow_false: true -%}
+{%- assign show_vendor = show_vendor | default: settings.show_vendor, allow_false: true -%}
+{%- assign show_quick_buy = show_quick_buy | default: settings.show_quick_buy, allow_false: true -%}
+{%- assign show_secondary_image = show_secondary_image | default: settings.show_secondary_image, allow_false: true -%}
+{%- assign text_alignment = text_alignment | default: settings.product_info_alignment -%}
+
+{%- if stacked and section.settings.products_per_row_mobile == '2' -%}
+  {%- assign mobile_reduced = true -%}
+{%- endif -%}
+
+{%- assign section_background = section.settings.background_gradient | default: section.settings.background | default: settings.background -%}
+{%- assign card_background = background | default: settings.product_card_background -%}
+{%- assign card_text_color = text_color | default: settings.product_card_text_color -%}
+
+{%- if section_background != 'rgba(0,0,0,0)' and card_background != 'rgba(0,0,0,0)' and section_background != card_background -%}
+  {%- assign card_class = 'product-card ' -%}
+{%- else -%}
+  {%- assign card_class = 'product-card product-card--blends ' -%}
+{%- endif -%}
+
+{%- if show_secondary_image and images_count > 1 -%}
+  {%- assign card_class = card_class | append: 'product-card--show-secondary-media' -%}
+{%- endif -%}
+
+<product-card handle="{{ product.handle | escape }}" {% if reveal %}reveal-js{% endif %} 
+      class="product-card product-card--show-secondary-media bg-custom text-custom"
+      style="--background: 255 255 255; --text-color: 26 26 26; opacity: 1; transform: translateY(0px);"
+  >
+    {%- comment -%}
+  --------------------------------------------------------------------------------------------------------------------
+  PRODUCT BADGES
+  --------------------------------------------------------------------------------------------------------------------
+  {%- endcomment -%}
+
+  {%- if show_badges and images_count > 0 -%}
+    {%- assign class = 'product-card__badge-list' -%}    
+    {%- assign badge_types = types | default: 'custom, sold_out, discount' | split: ',' -%}
+    {%- assign variant = product.selected_or_first_available_variant -%}
+    
+    {%- capture badges -%}
+      {%- for badge_type in badge_types -%}
+        {%- assign stripped_badge_type = badge_type | strip -%}
+    
+        {%- case stripped_badge_type -%}
+          {%- when 'custom' -%}
+            {%- assign custom_badges = product.metafields.custom.badges.value | sort -%}
+    
+            {%- for custom_badge in custom_badges -%}
+              <span class="badge badge--primary">{{ custom_badge }}</span>
+            {%- endfor -%}
+    
+          {%- when 'sold_out' -%}
+            {%- if settings.show_sold_out_badge -%}
+              {%- if variant.available == false or form_id != blank -%}
+                <sold-out-badge {% if variant.available %}hidden{% endif %} {% if form_id != blank %}form="{{ form_id }}"{% endif %} class="badge badge--sold-out">
+                  {% endraw %}{{- 'product.general.sold_out_badge' | t -}}{% raw %}
+                </sold-out-badge>
+              {%- endif -%}
+            {%- endif -%}
+    
+          {%- when 'discount' -%}
+            {%- if settings.show_discount -%}
+              {%- assign is_variant_on_sale = false -%}
+    
+              {%- if variant.available and variant.compare_at_price > variant.price -%}
+                {%- assign is_variant_on_sale = true -%}
+              {%- endif -%}
+    
+              {%- if form_id != blank or is_variant_on_sale -%}
+                {%- if settings.discount_mode == 'percentage' -%}
+                  {%- assign savings = variant.compare_at_price | minus: variant.price | times: 100.0 | divided_by: variant.compare_at_price | round | append: '%' -%}
+                {%- else -%}
+                  {%- capture savings -%}{{ variant.compare_at_price | minus: variant.price | money }}{%- endcapture -%}
+                {%- endif -%}
+    
+                <on-sale-badge {% unless is_variant_on_sale %}hidden{% endunless %} {% if settings.show_discount %}discount-mode="{{ settings.discount_mode | escape }}"{% endif %} {% if form_id != blank %}form="{{ form_id }}"{% endif %} class="badge badge--on-sale">
+                  {%- if form_id == blank and product.price_varies -%}
+                    {% endraw %}{{- 'product.general.on_sale_badge' | t -}}{% raw %}
+                  {%- else -%}
+                    {% endraw %}{{- 'product.general.discount_badge_html' | t -}}{% raw %}
+                  {%- endif -%}
+                </on-sale-badge>
+              {%- endif -%}
+            {%- endif -%}
+        {%- endcase -%}
+      {%- endfor -%}
+    {%- endcapture -%}
+    
+    {%- if badges != blank -%}
+      <div class="{{ class }}" {% endraw %}{{ block.shopify_attributes }}{% raw %}>
+        {{- badges -}}
+      </div>
+    {%- endif -%}
+  {%- endif -%}
+
+  {%- comment -%}
+  --------------------------------------------------------------------------------------------------------------------
+  PRODUCT MEDIA
+  --------------------------------------------------------------------------------------------------------------------
+  {%- endcomment -%}
+
+  {%- if images_count > 0 -%}
+    <div class="product-card__figure">
+      <a href="{{ product.url }}{{variant_url}}">
+        {%- capture sizes -%}
+          {%- if stacked -%}
+            (max-width: 699px) calc(100vw / {{ section.settings.products_per_row_mobile }} - 40px), (max-width: 999px) calc(100vw / {{ 3 | at_most: section.settings.products_per_row_desktop }} - 64px), calc(min(100vw - 96px, {{ settings.page_width }}px) / {{ section.settings.products_per_row_desktop }} - (24px / {{ section.settings.products_per_row_desktop }} * {{ section.settings.products_per_row_desktop | minus: 1 }}))
+          {%- else -%}
+            (max-width: 699px) 74vw, (max-width: 999px) 38vw, calc(min(100vw - 96px, {{ settings.page_width }}px) / {{ section.settings.products_per_row_desktop }} - (24px / {{ section.settings.products_per_row_desktop }} * {{ section.settings.products_per_row_desktop | minus: 1 }}))
+          {%- endif -%}
+        {%- endcapture -%}
+
+        {%- capture main_image_classes -%}product-card__image product-card__image--primary aspect-{{ settings.product_image_aspect_ratio }}{%- endcapture -%}
+          <img
+            srcset="{%- if product.featured_image.width >= 165 -%}{{ product.featured_image | img_url: '165x' }} 165w,{%- endif -%}
+                    {%- if product.featured_image.width >= 360 -%}{{ product.featured_image | img_url: '360x' }} 360w,{%- endif -%}
+                    {%- if product.featured_image.width >= 533 -%}{{ product.featured_image | img_url: '533x' }} 533w,{%- endif -%}
+                    {%- if product.featured_image.width >= 720 -%}{{ product.featured_image | img_url: '720x' }} 720w,{%- endif -%}
+                    {%- if product.featured_image.width >= 940 -%}{{ product.featured_image | img_url: '940x' }} 940w,{%- endif -%}
+                    {%- if product.featured_image.width >= 1066 -%}{{ product.featured_image | img_url: '1066x' }} 1066w,{%- endif -%}
+                    {{ product.featured_image | img_url: '533x' }} {{ product.featured_image.width }}w"
+            src="{{ product.featured_image | img_url: '533x' }}"
+            sizes="{{ sizes }}"
+            alt="{{ product.featured_image.alt | escape }}"
+            class="{{ main_image_classes }}"
+            loading="lazy"
+            width="{{ product.featured_image.width }}"
+            height="{{ product.featured_image.height }}"
+            >
+        {%- if show_secondary_image and images_count > 1 -%}
+          {%- assign next_media = product.images[product.featured_image.position] | default: product.images[1] -%}
+          <img
+            srcset="{%- if next_media.width >= 165 -%}{{ next_media | img_url: '165x' }} 165w,{%- endif -%}
+                    {%- if next_media.width >= 360 -%}{{ next_media | img_url: '360x' }} 360w,{%- endif -%}
+                    {%- if next_media.width >= 533 -%}{{ next_media | img_url: '533x' }} 533w,{%- endif -%}
+                    {%- if next_media.width >= 720 -%}{{ next_media | img_url: '720x' }} 720w,{%- endif -%}
+                    {%- if next_media.width >= 940 -%}{{ next_media | img_url: '940x' }} 940w,{%- endif -%}
+                    {%- if next_media.width >= 1066 -%}{{ next_media | img_url: '1066x' }} 1066w,{%- endif -%}
+                    {{ next_media | img_url: '533x' }} {{ next_media.width }}w"
+            src="{{ next_media | img_url: '533x' }}"
+            sizes="{{ sizes }}"
+            alt="{{ next_media.alt | escape }}"
+            class="product-card__image product-card__image--secondary object-fill"
+            loading="lazy"
+            width="{{ next_media.width }}"
+            height="{{ next_media.height }}"
+            >
+        {%- endif -%}
+      </a>
+
+      {%- if show_quick_buy and product.available -%}
+        <div class="product-card__quick-buy">
+          {%- assign quick_add_label = {% endraw %}"{{ 'product.general.quick_add' | t }}"{% raw %} -%}
+
+          {%- if product.variants.size == 1 and product.selling_plan_groups.size == 0 -%}
+            <form method="post" action="/cart/add" id="product_form_{{ product.id }}" accept-charset="UTF-8" class="shopify-product-form" enctype="multipart/form-data" is="product-form">
+              <input type="hidden" name="id" value="{{ product.selected_or_first_available_variant.id }}">
+
+              <div class="pointer-fine:hidden">
+                <button type="submit" is="custom-button" class="product-card__mobile-quick-buy-button" aria-label="{{ quick_add_label | escape }}">
+                  <svg role="presentation" fill="none" stroke-width="{{ stroke_width | default: settings.icon_stroke_width }}" focusable="false" width="{{ width | default: 16 }}" height="{{ height | default: 14 }}" class="icon icon-quick-buy-cart" viewBox="0 0 16 14">
+                    <path d="M7.75 4.75H2.283a1 1 0 0 0-.97 1.244l1.574 6.25a1 1 0 0 0 .97.756h7.787a1 1 0 0 0 .97-.756l1.573-6.25a1 1 0 0 0-.97-1.244H7.75Zm0 0V1" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"></path>
+                  </svg>
+                </button>
+              </div>
+
+              <div class="pointer-coarse:hidden">
+                 <button type="submit" class="button" is="custom-button"><div style="transform: translateY(0px); opacity: 1;">{{ quick_add_label | escape }}
+                </div><span class="button__loader" style="transform: translateY(-10px); opacity: 0;">
+                      <span style="opacity: 1;"></span>
+                      <span style="opacity: 1;"></span>
+                      <span style="opacity: 1;"></span>
+                    </span>
+                </button>
+              </div>
+            </form>
+          {%- else -%}
+            {%- capture quick_buy_id -%}quick-buy-{{ 'now' | date: '%N' }}{%- endcapture -%}
+
+            <div class="pointer-fine:hidden">
+              <button type="button" aria-controls="{{ quick_buy_id }}" aria-expanded="false" aria-label="{{ quick_add_label | escape }}" is="custom-button" class="product-card__mobile-quick-buy-button">
+                  <svg role="presentation" fill="none" stroke-width="{{ stroke_width | default: settings.icon_stroke_width }}" focusable="false" width="{{ width | default: 16 }}" height="{{ height | default: 14 }}" class="icon icon-quick-buy-cart" viewBox="0 0 16 14">
+                    <path d="M7.75 4.75H2.283a1 1 0 0 0-.97 1.244l1.574 6.25a1 1 0 0 0 .97.756h7.787a1 1 0 0 0 .97-.756l1.573-6.25a1 1 0 0 0-.97-1.244H7.75Zm0 0V1" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"></path>
+                  </svg>
+              </button>
+            </div>
+
+            <div class="pointer-coarse:hidden">
+              <button type="button" class="button" aria-controls="{{ quick_buy_id }}" aria-expanded="false" is="custom-button"><div>{{ quick_add_label | escape }}
+              </div><span class="button__loader">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </span></button>
+            </div>
+
+            <quick-buy-drawer id="{{ quick_buy_id }}" header-bordered open-from="bottom" handle="{{ product.handle }}" role="region" aria-live="polite" class="quick-buy-drawer drawer">
+              {%- comment -%}Quick buy content is filled on demand for performance reasons {%- endcomment -%}
+            </quick-buy-drawer>
+          {%- endif -%}
+        </div>
+      {%- endif -%}
+    </div>
+  {%- endif -%}
+
+  {%- comment -%}
+  --------------------------------------------------------------------------------------------------------------------
+  PRODUCT INFO
+  --------------------------------------------------------------------------------------------------------------------
+  {%- endcomment -%}
+
+  <div class="product-card__info {% if text_alignment == 'center' %}product-card__info--center{% endif %}">
+    {%- if show_vendor and product.vendor != blank -%}
+      {%- if show_rating and text_alignment != 'center' -%}
+        <div class="rating-with-text w-full">
+            <a href="/collections/vendors?q={{product.vendor | url_encode}}" class="text-xs link-faded">{{product.vendor}}</a>
+        </div>
+      {%- else -%}
+        <a href="/collections/vendors?q={{product.vendor | url_encode}}" class="text-xs link-faded">{{product.vendor}}</a>
+      {%- endif -%}
+    {%- endif -%}
+
+    <div class="v-stack gap-0.5 w-full {% if text_alignment == 'center' %}justify-items-center{% endif %}">
+      {%- if show_rating and show_vendor == false or product.vendor == blank -%}
+        <div class="rating-with-text">
+          <span class="product-card__title"><a href="{{ product.url }}{{variant_url}}" class="bold">{{ product.title }}</a></span>
+          
+        </div>
+      {%- else -%}
+        <span class="product-card__title"><a href="{{ product.url }}{{variant_url}}" class="bold">{{ product.title }}</a></span>
+      {%- endif -%}
+      {%- case size -%}
+        {%- when 'lg' -%}
+          {%- assign regular_price_classes = 'text-lg' -%}
+          {%- assign on_sale_price_classes = 'text-lg text-on-sale' -%}
+          {%- assign compare_at_price_classes = 'text-subdued line-through' -%}
+          {%- assign unit_price_classes = 'text-subdued' -%}
+      
+        {%- else -%}
+          {%- assign regular_price_classes = 'text-subdued' -%}
+          {%- assign on_sale_price_classes = 'text-on-sale' -%}
+          {%- assign compare_at_price_classes = 'text-subdued line-through' -%}
+          {%- assign unit_price_classes = 'text-subdued text-sm' -%}
+      {%- endcase -%}
+
+      <price-list {% if form_id %}role="region" aria-live="polite"{% endif %} class="price-list {% if size == 'lg' %}price-list--lg{% endif %} {% if text_alignment == 'center' %}justify-center{% endif %}" {{ block.shopify_attributes }}>
+          {%- comment -%}
+          --------------------------------------------------------------------------------------------------------------------
+          PRODUCT CASE (used on card)
+          --------------------------------------------------------------------------------------------------------------------
+          {%- endcomment -%}
+          {%- if product.price_varies and product.compare_at_price -%}
+            {%- if use_variant -%}
+            {%-   assign cheapest_variant = product.selected_or_first_available_variant -%}
+            {%- else -%}
+            {%-   assign cheapest_variant = product -%}
+            {%- endif -%}
+            {%- capture price_min -%}
+              {%- if settings.currency_code_enabled -%}
+                {{- cheapest_variant.price | money_with_currency -}}
+              {%- else -%}
+                {{- cheapest_variant.price | money -}}
+              {%- endif -%}
+            {%- endcapture -%}
+      
+            {%- if cheapest_variant.price < cheapest_variant.compare_at_price -%}
+              <sale-price class="{{ on_sale_price_classes }}">
+                <span class="sr-only">{% endraw %}{{ 'product.price.sale_price' | t }}{% raw %}</span>
+                {% endraw %}{{- 'product.price.from_price_html' | t -}}{% raw %}
+              </sale-price>
+      
+              <compare-at-price class="{{ compare_at_price_classes }}">
+                <span class="sr-only">{% endraw %}{{ 'product.price.regular_price' | t }}{% raw %}</span>
+      
+                {%- if settings.currency_code_enabled -%}
+                  {{- cheapest_variant.compare_at_price | money_with_currency -}}
+                {%- else -%}
+                  {{- cheapest_variant.compare_at_price | money -}}
+                {%- endif -%}
+              </compare-at-price>
+            {%- else -%}
+              <sale-price class="{{ regular_price_classes }}">
+                <span class="sr-only">{% endraw %}{{ 'product.price.sale_price' | t }}{% raw %}</span>
+                {% endraw %}{{- 'product.price.from_price_html' | t -}}{% raw %}
+              </sale-price>
+            {%- endif -%}
+          {%- elsif product.price < product.compare_at_price -%}
+            <sale-price class="{{ on_sale_price_classes }}">
+              <span class="sr-only">{% endraw %}{{ 'product.price.sale_price' | t }}{% raw %}</span>
+      
+              {%- if settings.currency_code_enabled -%}
+                {{- product.price | money_with_currency -}}
+              {%- else -%}
+                {{- product.price | money -}}
+              {%- endif -%}
+            </sale-price>
+      
+            <compare-at-price class="{{ compare_at_price_classes }}">
+              <span class="sr-only">{% endraw %}{{ 'product.price.regular_price' | t }}{% raw %}</span>
+      
+              {%- if settings.currency_code_enabled -%}
+                {{- product.compare_at_price | money_with_currency -}}
+              {%- else -%}
+                {{- product.compare_at_price | money -}}
+              {%- endif -%}
+            </compare-at-price>
+          {%- elsif product.price_varies -%}
+            {%- capture price_min -%}
+              {%- if settings.currency_code_enabled -%}
+                {{ product.price_min | money_with_currency }}
+              {%- else -%}
+                {{ product.price_min | money }}
+              {%- endif -%}
+            {%- endcapture -%}
+      
+            {%- capture price_max -%}
+              {%- if settings.currency_code_enabled -%}
+                {{- product.price_max | money_with_currency -}}
+              {%- else -%}
+                {{- product.price_max | money -}}
+              {%- endif -%}
+            {%- endcapture -%}
+      
+            <sale-price class="{{ regular_price_classes }}">
+              <span class="sr-only">{% endraw %}{{ 'product.price.sale_price' | t }}{% raw %}</span>
+              {% endraw %}{{- 'product.price.from_price_html' | t -}}{% raw %}
+            </sale-price>
+          {%- else -%}
+            <sale-price class="{{ regular_price_classes }}">
+              <span class="sr-only">{% endraw %}{{ 'product.price.sale_price' | t }}{% raw %}</span>
+      
+              {%- if settings.currency_code_enabled -%}
+                {{- product.price | money_with_currency -}}
+              {%- else -%}
+                {{- product.price | money -}}
+              {%- endif -%}
+            </sale-price>
+          {%- endif -%}
+      </price-list>
+          </div>
+  </div>
+</product-card>  {% endraw %}
